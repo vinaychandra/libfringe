@@ -55,7 +55,7 @@ pub const STACK_ALIGNMENT: usize = 16;
 #[repr(transparent)]
 pub struct StackPointer(*mut usize);
 
-pub unsafe fn init(stack: &Stack, f: unsafe extern "C" fn(usize, StackPointer) -> !) -> StackPointer {
+pub unsafe fn init(stack: &dyn Stack, f: unsafe extern "C" fn(usize, StackPointer) -> !) -> StackPointer {
   #[cfg(not(target_vendor = "apple"))]
   #[naked]
   unsafe extern "C" fn trampoline_1() {
@@ -170,9 +170,9 @@ pub unsafe fn init(stack: &Stack, f: unsafe extern "C" fn(usize, StackPointer) -
 
 #[inline(always)]
 pub unsafe fn swap(arg: usize, new_sp: StackPointer,
-                   new_stack: Option<&Stack>) -> (usize, StackPointer) {
+                   new_stack: Option<&dyn Stack>) -> (usize, StackPointer) {
   // Address of the topmost CFA stack slot.
-  let mut dummy: usize = mem::uninitialized();
+  let mut dummy: usize = mem::MaybeUninit::uninit().assume_init();
   let new_cfa = if let Some(new_stack) = new_stack {
     (new_stack.base() as *mut usize).offset(-4)
   } else {
