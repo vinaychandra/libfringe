@@ -71,7 +71,12 @@ pub unsafe fn init(
         # the symbol as local; it shouldn't interfere with anything.
       __morestack:
       .local __morestack
+      "#
+      : : : : "volatile");
 
+    #[cfg(not(feature = "disable-cfi"))]
+    asm!(
+      r#"
         # Set up the first part of our DWARF CFI linking stacks together. When
         # we reach this function from unwinding, %rbp will be pointing at the bottom
         # of the parent linked stack. This link is set each time swap() is called.
@@ -92,7 +97,10 @@ pub unsafe fn init(
         # 1-byte symbols, so we add a second nop here. This instruction isn't
         # executed either, it is only here to pad the symbol size.
         nop
-
+      "#
+      : : : : "volatile");
+    asm!(
+      r#"
       .Lend:
       .size __morestack, .Lend-__morestack
       "#
@@ -117,6 +125,7 @@ pub unsafe fn init(
 
   #[naked]
   unsafe extern "C" fn trampoline_2() {
+    #[cfg(not(feature = "disable-cfi"))]
     asm!(
       r#"
         # Set up the second part of our DWARF CFI.
@@ -132,7 +141,10 @@ pub unsafe fn init(
         # causing them to think the parent function is trampoline_1 instead of
         # trampoline_2.
         nop
-
+      "#
+      : : : : "volatile");
+    asm!(
+      r#"
         # Call the provided function.
         call    *16(%rsp)
       "#
