@@ -6,99 +6,103 @@
 // copied, modified, or distributed except according to those terms.
 #![feature(allocator_api)]
 
-extern crate core;
 extern crate alloc;
+extern crate core;
 extern crate fringe;
 
 use alloc::alloc::alloc;
 use core::alloc::Layout;
 
 use alloc::boxed::Box;
+use fringe::{OsStack, OwnedStack, SliceStack, Stack, STACK_ALIGNMENT};
 use std::slice;
-use fringe::{STACK_ALIGNMENT, Stack, SliceStack, OwnedStack, OsStack};
 
 unsafe fn heap_allocate(size: usize, align: usize) -> *mut u8 {
-  alloc(Layout::from_size_align_unchecked(size, align))
+    alloc(Layout::from_size_align_unchecked(size, align))
 }
 
 #[test]
 fn slice_aligned() {
-  unsafe {
-    let ptr = heap_allocate(16384, STACK_ALIGNMENT);
-    let mut slice = Box::from_raw(slice::from_raw_parts_mut(ptr, 16384));
-    let stack = SliceStack::new(&mut slice[4096..8192]);
-    assert_eq!(stack.base() as usize & (STACK_ALIGNMENT - 1), 0);
-    assert_eq!(stack.limit() as usize & (STACK_ALIGNMENT - 1), 0);
-  }
+    unsafe {
+        let ptr = heap_allocate(16384, STACK_ALIGNMENT);
+        let mut slice = Box::from_raw(slice::from_raw_parts_mut(ptr, 16384));
+        let stack = SliceStack::new(&mut slice[4096..8192]);
+        assert_eq!(stack.base() as usize & (STACK_ALIGNMENT - 1), 0);
+        assert_eq!(stack.limit() as usize & (STACK_ALIGNMENT - 1), 0);
+    }
 }
 
 #[test]
 fn slice_unaligned() {
-  unsafe {
-    let ptr = heap_allocate(16384, STACK_ALIGNMENT);
-    let mut slice = Box::from_raw(slice::from_raw_parts_mut(ptr, 16384));
-    let stack = SliceStack::new(&mut slice[4097..8193]);
-    assert_eq!(stack.base() as usize & (STACK_ALIGNMENT - 1), 0);
-    assert_eq!(stack.limit() as usize & (STACK_ALIGNMENT - 1), 0);
-  }
+    unsafe {
+        let ptr = heap_allocate(16384, STACK_ALIGNMENT);
+        let mut slice = Box::from_raw(slice::from_raw_parts_mut(ptr, 16384));
+        let stack = SliceStack::new(&mut slice[4097..8193]);
+        assert_eq!(stack.base() as usize & (STACK_ALIGNMENT - 1), 0);
+        assert_eq!(stack.limit() as usize & (STACK_ALIGNMENT - 1), 0);
+    }
 }
 
 #[test]
 fn slice_too_small() {
-  unsafe {
-    let ptr = heap_allocate(STACK_ALIGNMENT, STACK_ALIGNMENT);
-    let mut slice = Box::from_raw(slice::from_raw_parts_mut(ptr, STACK_ALIGNMENT));
-    let stack = SliceStack::new(&mut slice[0..1]);
-    assert_eq!(stack.base() as usize & (STACK_ALIGNMENT - 1), 0);
-    assert_eq!(stack.limit() as usize & (STACK_ALIGNMENT - 1), 0);
-  }
+    unsafe {
+        let ptr = heap_allocate(STACK_ALIGNMENT, STACK_ALIGNMENT);
+        let mut slice = Box::from_raw(slice::from_raw_parts_mut(ptr, STACK_ALIGNMENT));
+        let stack = SliceStack::new(&mut slice[0..1]);
+        assert_eq!(stack.base() as usize & (STACK_ALIGNMENT - 1), 0);
+        assert_eq!(stack.limit() as usize & (STACK_ALIGNMENT - 1), 0);
+    }
 }
 
 #[test]
 #[should_panic(expected = "SliceStack too small")]
 fn slice_too_small_unaligned() {
-  unsafe {
-    let ptr = heap_allocate(STACK_ALIGNMENT, STACK_ALIGNMENT);
-    let mut slice = Box::from_raw(slice::from_raw_parts_mut(ptr, STACK_ALIGNMENT));
-    SliceStack::new(&mut slice[1..2]);
-  }
+    unsafe {
+        let ptr = heap_allocate(STACK_ALIGNMENT, STACK_ALIGNMENT);
+        let mut slice = Box::from_raw(slice::from_raw_parts_mut(ptr, STACK_ALIGNMENT));
+        SliceStack::new(&mut slice[1..2]);
+    }
 }
 
 #[test]
 fn slice_stack() {
-  let mut memory = [0; 1024];
-  let stack = SliceStack::new(&mut memory);
-  assert_eq!(stack.base() as usize & (STACK_ALIGNMENT - 1), 0);
-  assert_eq!(stack.limit() as usize & (STACK_ALIGNMENT - 1), 0);
+    let mut memory = [0; 1024];
+    let stack = SliceStack::new(&mut memory);
+    assert_eq!(stack.base() as usize & (STACK_ALIGNMENT - 1), 0);
+    assert_eq!(stack.limit() as usize & (STACK_ALIGNMENT - 1), 0);
 
-  // Size may be a bit smaller due to alignment
-  assert!(stack.base() as usize - stack.limit() as usize > 1024 - STACK_ALIGNMENT * 2);
+    // Size may be a bit smaller due to alignment
+    assert!(stack.base() as usize - stack.limit() as usize > 1024 - STACK_ALIGNMENT * 2);
 }
 
 #[test]
 fn owned_stack() {
-  let stack = OwnedStack::new(1024);
-  assert_eq!(stack.base() as usize & (STACK_ALIGNMENT - 1), 0);
-  assert_eq!(stack.limit() as usize & (STACK_ALIGNMENT - 1), 0);
-  assert_eq!(stack.base() as usize - stack.limit() as usize, 1024);
+    let stack = OwnedStack::new(1024);
+    assert_eq!(stack.base() as usize & (STACK_ALIGNMENT - 1), 0);
+    assert_eq!(stack.limit() as usize & (STACK_ALIGNMENT - 1), 0);
+    assert_eq!(stack.base() as usize - stack.limit() as usize, 1024);
 }
 
 #[test]
 fn default_os_stack() {
-  let stack = OsStack::new(0).unwrap();
-  assert_eq!(stack.base() as usize & (STACK_ALIGNMENT - 1), 0);
-  assert_eq!(stack.limit() as usize & (STACK_ALIGNMENT - 1), 0);
+    let stack = OsStack::new(0).unwrap();
+    assert_eq!(stack.base() as usize & (STACK_ALIGNMENT - 1), 0);
+    assert_eq!(stack.limit() as usize & (STACK_ALIGNMENT - 1), 0);
 
-  // Make sure the topmost page of the stack, at least, is accessible.
-  unsafe { *(stack.base().offset(-1)) = 0; }
+    // Make sure the topmost page of the stack, at least, is accessible.
+    unsafe {
+        *(stack.base().offset(-1)) = 0;
+    }
 }
 
 #[test]
 fn one_page_os_stack() {
-  let stack = OsStack::new(4096).unwrap();
-  assert_eq!(stack.base() as usize & (STACK_ALIGNMENT - 1), 0);
-  assert_eq!(stack.limit() as usize & (STACK_ALIGNMENT - 1), 0);
+    let stack = OsStack::new(4096).unwrap();
+    assert_eq!(stack.base() as usize & (STACK_ALIGNMENT - 1), 0);
+    assert_eq!(stack.limit() as usize & (STACK_ALIGNMENT - 1), 0);
 
-  // Make sure the topmost page of the stack, at least, is accessible.
-  unsafe { *(stack.base().offset(-1)) = 0; }
+    // Make sure the topmost page of the stack, at least, is accessible.
+    unsafe {
+        *(stack.base().offset(-1)) = 0;
+    }
 }

@@ -11,25 +11,25 @@ extern crate test;
 #[cfg(target_arch = "x86_64")]
 #[bench]
 fn syscall(b: &mut test::Bencher) {
-  b.iter(|| unsafe {
-    asm!("movq $$102, %rax\n\
+    b.iter(|| unsafe {
+        asm!("movq $$102, %rax\n\
           syscall"
          :
          :
          : "rax", "rcx"
          : "volatile");
-  });
+    });
 }
 
 #[cfg(target_arch = "x86")]
 #[bench]
 fn syscall(b: &mut test::Bencher) {
-  b.iter(|| unsafe {
-    asm!("mov $$24, %eax\n\
+    b.iter(|| unsafe {
+        asm!("mov $$24, %eax\n\
           int $$0x80"
          :
          :
          : "eax"
          : "volatile");
-  });
+    });
 }
