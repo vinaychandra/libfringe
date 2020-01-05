@@ -72,9 +72,10 @@ pub unsafe fn init(
       __morestack:
       .local __morestack
       "#
-      : : : : "volatile");
-
-    #[cfg(not(feature = "disable-cfi"))]
+      : : : : "volatile"
+    );
+    #[cfg(all(feature = "disable-cfi", not(debug_assertions)))]
+    asm!(r#".cfi_startproc"#: : : : "volatile");
     asm!(
       r#"
         # Set up the first part of our DWARF CFI linking stacks together. When
@@ -86,7 +87,13 @@ pub unsafe fn init(
         # of `swap_trampoline` does.
         .cfi_def_cfa %rbp, 16
         .cfi_offset %rbp, -16
-
+      "#
+      : : : : "volatile"
+    );
+    #[cfg(all(feature = "disable-cfi", not(debug_assertions)))]
+    asm!(r#" .cfi_endproc "# : : : : "volatile");
+    asm!(
+      r#"
         # This nop is here so that the initial swap doesn't return to the start
         # of the trampoline, which confuses the unwinder since it will look for
         # frame information in the previous symbol rather than this one. It is
@@ -97,14 +104,12 @@ pub unsafe fn init(
         # 1-byte symbols, so we add a second nop here. This instruction isn't
         # executed either, it is only here to pad the symbol size.
         nop
-      "#
-      : : : : "volatile");
-    asm!(
-      r#"
+
       .Lend:
       .size __morestack, .Lend-__morestack
       "#
-      : : : : "volatile")
+      : : : : "volatile"
+    );
   }
 
   #[cfg(target_vendor = "apple")]
@@ -125,7 +130,8 @@ pub unsafe fn init(
 
   #[naked]
   unsafe extern "C" fn trampoline_2() {
-    #[cfg(not(feature = "disable-cfi"))]
+    #[cfg(all(feature = "disable-cfi", not(debug_assertions)))]
+    asm!(r#".cfi_startproc"#: : : : "volatile");
     asm!(
       r#"
         # Set up the second part of our DWARF CFI.
@@ -135,20 +141,24 @@ pub unsafe fn init(
         # of the stack of the context switch just switched from.
         .cfi_def_cfa %rbp, 16
         .cfi_offset %rbp, -16
-
+      "#
+      : : : : "volatile"
+    );
+    #[cfg(all(feature = "disable-cfi", not(debug_assertions)))]
+    asm!(r#".cfi_endproc"#: : : : "volatile");
+    asm!(
+      r#"
         # This nop is here so that the return address of the swap trampoline
         # doesn't point to the start of the symbol. This confuses gdb's backtraces,
         # causing them to think the parent function is trampoline_1 instead of
         # trampoline_2.
         nop
-      "#
-      : : : : "volatile");
-    asm!(
-      r#"
+
         # Call the provided function.
         call    *16(%rsp)
       "#
-      : : : : "volatile")
+      : : : : "volatile"
+    );
   }
 
   unsafe fn push(sp: &mut StackPointer, val: usize) {
