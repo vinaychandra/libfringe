@@ -200,7 +200,7 @@ pub unsafe fn swap(
   new_stack: Option<&dyn Stack>,
 ) -> (usize, StackPointer) {
   // Address of the topmost CFA stack slot.
-  let mut dummy: usize = mem::uninitialized();
+  let mut dummy: usize = mem::MaybeUninit::uninit().assume_init();
   let new_cfa = if let Some(new_stack) = new_stack {
     (new_stack.base() as *mut usize).offset(-4)
   } else {
