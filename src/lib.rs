@@ -36,9 +36,12 @@ extern crate std;
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
-pub use stack::*;
+#[allow(clippy::all)]
 pub use generator::Generator;
+#[allow(clippy::all)]
+pub use stack::*;
 
+#[allow(clippy::all)]
 mod arch;
 
 /// Minimum alignment of a stack base address on the target platform.
@@ -46,6 +49,7 @@ pub const STACK_ALIGNMENT: usize = arch::STACK_ALIGNMENT;
 
 mod debug;
 
+#[allow(clippy::all)]
 pub mod generator;
 
 mod stack;
